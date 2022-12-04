@@ -1,0 +1,36 @@
+<ul class="list-unstyled components" id='sidebar-body' style="font-size: small;">
+    <li><a href="/"> Dashboard</a></li>
+    <li><a href="/Property"> Property Lists</a></li>
+    <li><a href="/Unit"> Unit Lists</a></li>
+    <li><a href="/Tenant"> Tenant Lists</a></li>
+    <li><a href="/Job"> Job Lists</a></li>
+    <li>
+        <a href="#transactionSubmenu" id="transaction" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Transactions</a>
+        <ul class="collapse list-unstyled" id="transactionSubmenu">
+            <li><a href="/Ledger" parent="transaction"> Ledger Lists</a></li>
+            <li><a href="/Invoice" parent="transaction"> Invoice Lists</a></li>
+            <li><a href="/Expense" parent="transaction"> Expense Lists</a></li>
+            <li><a href="/Collection" parent="transaction"> Collection Lists</a></li>
+        </ul>
+    </li>
+    <li>
+        <a href="#reportSubmenu" id="report" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Reports</a>
+        <ul class="collapse list-unstyled" id="reportSubmenu">
+            <li><a href="/Report/Collection" parent="report"> Collection Report</a></li>
+            <li><a href="/Report/Profitability" parent="report"> Profitability Report</a></li>
+            <li><a href="/Report/Tenant" parent="report"> Tenant Report</a></li>
+        </ul>
+    </li>
+    <li class="d-none">
+        <a href="#settingsSubmenu" id="settings" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">Settings</a>
+        <ul class="collapse list-unstyled" id="settingsSubmenu">
+            <li><a href="/Navigation" parent="settings"> Navigation List</a></li>
+            <li><a href="/Policy" parent="settings"> Policy List</a></li>
+            <li><a href="/Role" parent="settings"> User Roles</a></li>
+            <li><a href="/User" parent="settings"> User List</a></li>
+        </ul>
+    </li>
+    <li>
+        <a href="https://thedotred.com" target="_blank"> &copy; 2022 TDRL</span></a>
+    </li>
+</ul>

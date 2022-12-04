@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html>
+
+    <head>
+        <meta charset="utf-8" />
+        <meta http-equiv="X-UA-Compatible" content="IE=edge">
+        <title>{{title}} - Management 360</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+
+        <!-- Bootstrap 4 -->
+        <link rel="stylesheet" href="/css/bootstrap.min.css">
+        <script src="/js/jquery.min.js"></script>
+        <script src="/js/bootstrap.min.js"></script>
+
+        <!-- Font awesome -->
+        <script src='/js/all.js'></script>
+        <link rel="stylesheet" href="/css/all.css">
+
+        <!-- Telerik Bootstrap -->
+        <link rel="stylesheet" type="text/css" href="/css/kendo.bootstrap-v4.min.css" />
+        <script src="/js/kendo.all.min.js"></script>
+        <script src="/js/jszip.min.js"></script>
+        <script src="/js/wow.js"></script>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <!-- jQuery Custom Scroller CDN -->
+        <script src="https://cdnjs.cloudflare.com/ajax/libs/malihu-custom-scrollbar-plugin/3.1.5/jquery.mCustomScrollbar.concat.min.js"></script>
+        
+        <link rel="icon" type="image/png" sizes="96x96" href="/images/Logo.png">
+        <style>
+            @import "https://fonts.googleapis.com/css?family=Poppins:300,400,500,600,700";
+            html {
+                font-size: 14px;
+                font-family: Arial, Helvetica, sans-serif;
+            }
+
+            /*Sidebar style starts*/
+            .wrapper {
+                display: flex;
+                width: 100%;
+                align-items: stretch;
+            }
+
+            #sidebar {
+                font-family: 'Poppins', sans-serif;
+                min-width: 250px;
+                max-width: 250px;
+                min-height: 100vh;
+                background: rgb(228, 231, 235);
+                /*color: #fff;*/
+                transition: all 0.3s;
+            }
+
+            #sidebar.active {
+                margin-left: -250px;
+            }
+
+            a[data-toggle="collapse"] {
+                position: relative;
+            }
+
+            .dropdown-toggle::after {
+                display: block;
+                position: absolute;
+                top: 50%;
+                right: 20px;
+                transform: translateY(-50%);
+            }
+
+            #sidebar .sidebar-header {
+                padding: 20px;
+                background: rgb(228, 231, 235);
+            }
+
+            #sidebar ul.components {
+                padding: 20px 0;
+                border-bottom: 1px solid rgb(228, 231, 235);
+            }
+
+            #sidebar ul p {
+                color: #fff;
+                padding: 10px;
+            }
+
+            #sidebar ul li a {
+                padding: 8px;
+                font-size: 1.0em;
+                display: block;
+            }
+            #sidebar ul li a:hover {
+                color: #7386D5;
+                background: #fff;
+            }
+
+            #sidebar ul li.active > a, a[aria-expanded="true"] {
+                /*color: #fff;*/
+                background: rgb(205, 205, 205);
+            }
+            #sidebar ul ul a {
+                font-size: 0.9em !important;
+                padding-left: 30px !important;
+                background: rgb(228, 231, 235);
+            }
+            
+            @media (max-width: 768px) {
+                #sidebar {
+                    margin-left: -250px;
+                }
+                #sidebar.active {
+                    margin-left: 0;
+                }
+            }
+
+            #sidebar a, a:hover, a:focus {
+                color: inherit;
+                text-decoration: none;
+                transition: all 0.3s;
+            }
+            /*Sidebar style ends*/
+
+            /*TDRL style starts*/
+            .tdrl-danger {
+                background: #FFCDD2; 
+                color: #B71C1C
+            }
+            .tdrl-success {
+                background: #C8E6C9; 
+                color: #1B5E20
+            }
+            .tdrl-warning {
+                background: #FFE0B2; 
+                color: #E65100
+            }
+            .tdrl-secondary {
+                background: #EEEEEE; 
+                color: #212121
+            }
+            .tdrl-info {
+                background: #B2DFDB; 
+                color: #004D40
+            }
+            .tdrl-primary {
+                background: #BBDEFB; 
+                color: #0D47A1
+            }
+            /*TDRL style ends*/
+
+            .k-grid .k-grid-header .k-header .k-link {
+                height: auto;
+            }
+
+            .k-grid .k-grid-header .k-header {
+                white-space: normal;
+                font-size: 12px;
+                font-weight: 700;
+            }
+        </style>
+        <script>
+            //var socket = io.connect();
+            //var socket = io.connect('https://office21.dealizle.com', {transports: ['polling']});
+        </script>
+    </head>
+
+    <body>
+        <div class="wrapper bg-light">
+            <!--Side bar-->
+            <nav id="sidebar">
+                <div id="sidebar-header" class="text-center mt-3">
+                    <img src="/images/Logo.png" style="width: 150px;">
+                    <h3 class="text-center m-2">Rent Management System</h3>
+                </div>
+                {{> navigation/sidenav2}}
+            </nav>
+            <!--Main-->
+            <div id="content" style="width:100%">
+                <!--Top Navigation bar-->
+                <nav class="navbar navbar-dark d-flex justify-content-between flex-wrap">
+                    <button type="button" id="sidebarCollapse" class="navbar-toggler bg-dark">
+                        <span class="navbar-toggler-icon"></span>
+                    </button>
+                    <div class="d-none">
+                        Logged in as: <kbd class="font-italic">{{sessionData.currentUser}}</kbd> | 
+                        Granted permission: <kbd class="font-italic">{{sessionData.userRole}}</kbd>
+                    </div>
+                    <div class="btn-group float-right d-none">
+                        <span class="btn btn-dark" onclick="logoutDialog()"><i class='fas fa-sign-out-alt'></i> Logout</span>
+                    </div>
+                </nav>
+                <div style="padding-left: 5px; padding-right: 5px;">
+                    {{{body}}}
+                    <span id="popupNotification"></span>
+                </div>
+            </div>
+        </div>
+        <div class="modal" id="reportViewerModal" tabindex="-1" role="dialog" aria-labelledby="reportViewerModal"
+        aria-hidden="true">
+            <div class="modal-dialog" id="reportviewermodaldialog" role="document" style="top:0;">
+                <div class="modal-content" style="width: 90em;right:75%">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="reportViewerModal">Report Viewer</h5>
+                    </div>
+                    <div class="modal-body">
+                        <div id="reportViewerContent"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" id="dismiss-discount-modal" data-dismiss="modal"
+                            onclick="printModalClose()">OK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="logout"></div>
+    </body>
+
+    <!-- Notification template -->
+    <script id="successNotificationTemplate" type="text/x-kendo-template">
+        <div style="width: 250px">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            <div>#= message #</div>
+        </div>
+    </script>
+
+    <script id="faliedNotificationTemplate" type="text/x-kendo-template">
+        <div style="width: 350px">
+            <button type="button" class="close" data-dismiss="alert">&times;</button>
+            <div>#= message #</div>
+        </div>
+    </script>
+
+    <script>
+        $(document).ready(function () {
+            nav_select();
+            $("#sidebar").mCustomScrollbar({
+                theme: "minimal"
+            });
+            
+            $('#sidebarCollapse').on('click', function () {
+                // open or close navbar
+                $('#sidebar').toggleClass('active');
+                // close dropdowns
+                $('.collapse.in').toggleClass('in');
+                // and also adjust aria-expanded attributes we use for the open/closed arrows
+                // in our CSS
+                $('a[aria-expanded=true]').attr('aria-expanded', 'false');
+            });
+        });
+
+        async function setReport(Template, Data) {
+            $('#reportViewerModal').modal({
+                backdrop: 'static',
+                keyboard: false
+            });
+            // $('#reportViewerModal').modal('show');
+            var options = new Stimulsoft.Viewer.StiViewerOptions();
+            options.toolbar.printDestination = Stimulsoft.Viewer.StiPrintDestination.Direct;
+            options.appearance.htmlRenderMode = Stimulsoft.Report.Export.StiHtmlExportMode.Table;
+            options.toolbar.showAboutButton = false;
+            options.exports.showExportToPdf = false;
+            options.exports.showExportToWord2007 = false;
+            options.exports.showExportToDocument = false;
+            options.exports.showExportToHtml = false;
+            // Create an instance of the viewer
+            ReportViewerDetails = new Stimulsoft.Viewer.StiViewer(null, "GiveStiViewer", false);
+            document.getElementById("reportViewerContent").innerHTML = "";
+            await ReportViewerDetails.renderHtml("reportViewerContent");
+            // Create a new report instance
+            var report = new Stimulsoft.Report.StiReport();
+            // Load reports from JSON object
+            report.load(Template);
+
+            // Remove all connections in report template (they are used in the first place)
+            report.dictionary.databases.clear();
+            // Registered JSON data specified in the report with same name
+            report.regData("Demo", "Demo", Data);
+            // Assign the report to the viewer
+            ReportViewerDetails.report = report;
+        }
+
+        function nav_select() {
+            // Declare variables
+            var input, filter, ul, li, a, i, txtValue;
+            input = {{{ nav_name }}};
+            filter = input.toUpperCase();
+            ul = document.getElementById("sidebar-body");
+            li = ul.getElementsByTagName('li');
+
+            // Loop through all list items, and hide those who don't match the search query
+            for (i = 0; i < li.length; i++) {
+                let a = li[i].getElementsByTagName("a")[0];
+                txtValue = a.textContent || a.innerText;
+                if (txtValue.toUpperCase().indexOf(filter) > -1) {
+                    li[i].classList.add("active");
+                    if(a.getAttribute('data-toggle'))
+                    {
+                        a.click();
+                    } else if (a.getAttribute('parent'))
+                    {
+                        document.getElementById(a.getAttribute('parent')).click();
+                    }
+                } else {
+                    li[i].classList.remove("active");
+                }
+            }
+        }
+
+        function vLookUp(lookUpId, arrayName, lookUpField, resultField) {
+            for (var i = 0; i < arrayName.length; i++) {
+                if (arrayName[i][lookUpField] == lookUpId) {
+                    return arrayName[i][resultField];
+                }
+            }
+        }
+
+        function kendoNumberFormat(number, format){
+            return number == null ? kendo.toString(0, format) : kendo.toString(number, format);
+        }
+
+        function kendoDateFormat(date, format){
+            return date == null ? "Not available" : kendo.toString(new Date(date), format);
+        }
+
+        function kendoDropDown(container, options, configuration) {
+            var input = $(`<input id="${options.field}" name="${options.field}" style="width:100%" ${configuration.required === undefined ? "" : "required"} ${configuration.disabled === undefined ? "" : "disabled"}/>`);
+            input.appendTo(container)
+            input.kendoDropDownList({
+                autoBind: configuration.auto_bind === undefined ? true: false,
+                optionLabel: configuration.option_label === undefined ? "" : configuration.option_label, //"Select category..."
+                cascadeFrom: configuration.cascade_from === undefined ? "" : configuration.cascade_from,
+                dataTextField: configuration.text,
+                dataValueField: configuration.value,
+                dataSource: configuration.dataSource,
+                filter: "contains",
+                select: function(e){
+                    configuration.onSelect === undefined ? false: configuration.onSelect(e);
+                },
+                change: function(){
+                    configuration.onChange === undefined ? false: configuration.onChange();
+                }
+            });
+        }
+
+        function kendoMultiColumnDropDown(container, options, configuration) {
+            var input = $(`<input id="${options.field}" name="${options.field}" ${configuration.required === undefined ? "" : "required"} style="width: 100%;" />`);
+            input.appendTo(container);
+            input.kendoMultiColumnComboBox({
+                autoBind: configuration.auto_bind === undefined ? true: false,
+                //optionLabel not available in multi column
+                cascadeFrom: configuration.cascade_from === undefined ? "" : configuration.cascade_from,
+                value: configuration.value === undefined ? "" : configuration.value,
+                dataTextField: configuration.dataTextField,
+                dataValueField: configuration.dataValueField,
+                height: configuration.height === undefined ? 300 : configuration.height,
+                columns: configuration.columns,
+                footerTemplate: 'Total #: instance.dataSource.total() # items found',
+                filter: "contains",
+                filterFields: configuration.filterFields,
+                dataSource: configuration.dataSource,
+                select: function(e){
+                    configuration.onSelect === undefined ? false: configuration.onSelect(e);
+                }
+            }).appendTo(container);
+        }
+
+        function kendoMultiSelectDropdown(container, options, configuration){
+            var input = $(`<select multiple="multiple" id="${options.field}" name="${options.field}" style="width: 100%;" ${configuration.required === undefined ? "" : "required"}></select>`);
+            input.appendTo(container)
+            input.kendoMultiSelect({
+                autoBind: configuration.auto_bind === undefined ? true: false,
+                optionLabel: configuration.option_label === undefined ? "" : configuration.option_label, //"Select category..."
+                cascadeFrom: configuration.cascade_from === undefined ? "" : configuration.cascade_from,
+                autoClose: configuration.autoClose === undefined ? true : configuration.autoClose,
+                tagMode: configuration.tagMode === undefined ? "multiple" : configuration.tagMode,
+                filter: "startswith",
+                dataTextField: configuration.dataTextField,
+                dataValueField: configuration.dataValueField,
+                dataSource: configuration.dataSource,
+                noDataTemplate: configuration.noDataTemplate === undefined ? "": configuration.noDataTemplate,
+                enable: configuration.enable === undefined ? true: configuration.enable,
+                value: configuration.value === undefined ? []: configuration.value,
+                //$("#noDataTemplate").html()
+                select: function(e){
+                    configuration.onSelect === undefined ? false: configuration.onSelect(e);
+                },
+                deselect: function(e){
+                    configuration.onDeselect === undefined ? false: configuration.onDeselect(e);
+                },
+                change: function(e){
+                    configuration.onChange === undefined ? false: configuration.onChange(e);
+                }
+            });
+        }
+        
+        function kendoWindow(configuration){
+            var myWindow = $(`#${configuration.id}`);;
+
+            if (!myWindow.data("kendoWindow")) {
+                myWindow.kendoWindow({
+                    height: configuration.height ? `${configuration.height}px` : false,
+                    width: configuration.width ? `${configuration.width}px` : false,
+                    actions: [
+                        "Maximize",
+                        "Close"
+                    ],
+                    modal: true,
+                    title: `${configuration.title}`,
+                    appendTo: "body",
+                    close: function(e){
+                        configuration.onClose === undefined ? false: configuration.onClose(e);
+                    }
+                });
+            };
+            myWindow.data("kendoWindow").setOptions({title: `${configuration.title}`})
+            if(configuration.content){
+                myWindow.data("kendoWindow").setOptions({content: configuration.content});
+                myWindow.data("kendoWindow").refresh();
+            }
+            myWindow.data('kendoWindow').center().open();
+            return false;
+        }
+
+        function kendoCloseWindow()
+        {
+            $('[aria-label="Close"]').click();
+        }
+
+        function validation(options){
+            if (options.field){
+                var validator = $(`#${options.field}`).kendoValidator().data("kendoValidator"),
+                status = $(".status");
+
+                if (validator.validate()) {
+                    return true;
+                } else {
+                    status.text("Oops! There is invalid data in the form.")
+                        .removeClass("valid")
+                        .addClass("invalid");
+                    return false
+                }
+            } else {
+                alert('"field" key is missing');
+            }
+        }
+        
+        function kendoPopUpNotifications(type, responseMessage){
+            var notification = $("#popupNotification").kendoNotification({
+                templates: [{
+                    type: "error",
+                    template: $("#faliedNotificationTemplate").html()
+                }, {
+                    type: "success",
+                    template: $("#successNotificationTemplate").html()
+                }]
+            }).data("kendoNotification");
+
+            notification.show({
+                message: responseMessage
+            }, type);
+        }
+
+        function selectMenuItems(itemsArray, indexNo){
+            var container = "";
+            itemsArray.forEach((item, index) => {
+                container += 
+                `
+                    <span>
+                        <a href="${item.href}"  style="text-decoration: none !important;color:${index === indexNo? 'white' : 'black'} ;">
+                            ${item.text}
+                        </a>
+                    </span>
+                `
+            });
+            $("#select-menu").html(container);
+            $("#select-menu").kendoButtonGroup({
+                index: indexNo
+            });
+        }
+
+        function kendoGridHideMeOnEdit(e){
+            e.sender.columns.forEach(function (element, index /*, array */) {
+                if (element.hideMe) {
+                    e.container.find(".k-edit-label:eq(" + index + "), "
+                        + ".k-edit-field:eq( " + index + ")"
+                    ).hide();
+                }
+                if (!e.model.isNew())
+                {
+                    transactionQuantity = e.model.transaction_quantity;
+                }
+            });
+        }
+
+        function gridHideMe(e){
+            e.sender.columns.forEach(function (element, index /*, array */) {
+                if (element.hideMe) {
+                    e.container.find(".k-edit-label:eq(" + index + "), "
+                        + ".k-edit-field:eq( " + index + ")"
+                    ).hide();
+                }
+            });
+        }
+
+        function logoutDialog(){
+
+            var dialog = $('#logout');
+
+            if (dialog.data("kendoDialog")){
+                dialog.data("kendoDialog").open();
+            } else {
+                dialog.kendoDialog({
+                    width: "250px",
+                    title: "Logout",
+                    closable: false,
+                    modal: true,
+                    content: "<p>Are you sure you want to logout?<p>",
+                    actions: [
+                        { text: 'Yes', action: function(){window.location.href = '/Logout';} },
+                        { text: 'No', primary: true }
+                    ]
+                });
+            }
+        }
+    </script>
+</html>

@@ -1,0 +1,436 @@
+<div id="dashboard-tilelayout"></div>
+
+<!--JavaSscript-->
+<script id="login-summary-template" type="text/html">
+    <h2 class="">Welcome back, User {{sessionData.currentUserName}}</h2>
+    <p class="">Signed in successfully</p>
+</script>
+<script id="date-filter-template" type="text/html">
+    <div class="row">
+        <div class="col-md-6 col-sm-12">
+            <label>Select a start date</label>
+            <input data-role="datepicker"
+                data-bind="value: start_date"
+                data-format="yyyy-MM-dd"
+                style="width: 100%"
+                required validationMessage="This field is required"/>
+        </div>
+        <div class="col-md-6 col-sm-12">
+            <label>Select a end date</label>
+            <input data-role="datepicker"
+                data-bind="value: end_date"
+                data-format="yyyy-MM-dd"
+                style="width: 100%"
+                required validationMessage="This field is required"/>
+        </div>
+        <div class="col-sm-12">
+            <button class="k-button mt-3 btn-block" onclick="loadStatements()">Submit</button>
+        </div>
+    </div>
+</script>
+<!--Pills starts-->
+<script id="cashflow-stats-template" type="text/x-kendo-template">
+    <div class="row">
+        <div class="col-md-3 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h5 class="card-header tdrl-primary">
+                        <a href="/Report/Tenant" style="color: inherit;">
+                            <u>Income</u>
+                        </a>
+                    </h5>
+                </div>
+                <div class="card-body row">
+                    <h4 class="text-right col-12" id="cash_outflow" data-bind="html: cash_outflow">0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h5 class="card-header tdrl-danger">
+                        <a href="/Report/Profitability/Property" style="color: inherit;">
+                            <u>Expenses</u>
+                        </a>
+                    </h5>
+                </div>
+                <div class="card-body row">
+                    <h4 class="text-right col-12" id="cash_inflow" data-bind="html: cash_inflow">0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h5 class="card-header tdrl-info">
+                        <a href="/Report/Profitability/Property" style="color: inherit;">
+                            <u>Profit</u>
+                        </a>
+                    </h5>
+                </div>
+                <div class="card-body row">
+                    <h4 class="text-right col-12" id="cash_opening_balance" data-bind="html: cash_opening_balance">0</h4>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h5 class="card-header tdrl-warning">
+                        <a href="/Report/Tenant" style="color: inherit;">
+                            <u>Outstanding amount</u>
+                        </a>
+                    </h5>
+                </div>
+                <div class="card-body row">
+                    <h4 class="text-right col-12" id="cash_closing_balance" data-bind="html: cash_closing_balance">0</h4>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>
+<!--Pills ends-->
+
+<!--Highlighs start-->
+<script id="highlights-filter-template" type="text/html">
+    <div class="row" id="bill-stats-body">
+        <div class="col-md-6 col-sm-12 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h6 class="card-header">
+                        <a href="/Unit" style="color: inherit;">
+                            <u>Number of Units</u>
+                        </a>
+                    </h6>
+                </div>
+                <div class="card-body row pb-0">
+                    <h3 id="unit_number" class="text-right col-12" data-bind="html: total_units">0</h3>
+                </div>
+                <div class="m-2">
+                    <p class="mb-0 text-right" data-bind="html: total_units_status">...</p>
+                    <div data-role="progressbar"
+                        data-bind="value: percentage_vacant_unit"
+                        data-type="percent"
+                        style="width: 100%;height: 20px"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-sm-12 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h6 class="card-header">
+                        <a href="/Tenant" style="color: inherit;">
+                            <u>Number of Tenants</u>
+                        </a>
+                    </h6>
+                </div>
+                <div class="card-body row pb-0">
+                    <h3 id="tenant_number" class="text-right col-12" data-bind="html: total_tenants">0</h3>
+                </div>
+                <div class="m-2">
+                    <p class="mb-0 text-right" data-bind="html: total_tenants_status">...</p>
+                    <div data-role="progressbar"
+                        data-bind="value: percentage_inactive_unit"
+                        data-type="percent"
+                        style="width: 100%;height: 20px"></div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-sm-12 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h6 class="card-header">
+                        <a href="/Invoice" style="color: inherit;">
+                            <u>Number of Invoices</u>
+                        </a>
+                    </h6>
+                </div>
+                <div class="card-body row pb-0">
+                    <h3 class="text-right col-12" data-bind="html: total_invoices">0</h3>
+                </div>
+                <div class="m-2">
+                    <p class="mb-0 text-right" data-bind="html: due_invoices_upto">...</p>
+                    <p class="mb-0 text-right" data-bind="html: overdue_invoices_upto">...</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 col-sm-12 p-2">
+            <div class="card">
+                <div class="text-center">
+                    <h6 class="card-header">
+                        <a href="/Report/Collection" style="color: inherit;">
+                            <u>Amount of Unpaid Invoices</u>
+                        </a>
+                    </h6>
+                </div>
+                <div class="card-body row pb-0">
+                    <h3 class="text-right col-12" data-bind="html: unpaid_amount">0</h3>
+                </div>
+                <div class="m-2">
+                    <p class="mb-0 text-right" data-bind="html: due_amount_upto">...</p>
+                    <p class="mb-0 text-right" data-bind="html: overdue_amount_upto">...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</script>
+<!--Highlighs end-->
+<!--Lease expires start-->
+<script id="lease-stats-template" type="text/html">
+    <div id="lease_grid" style="font-size: small;"></div>
+</script>
+<!--Lease expires end-->
+
+
+</script>
+<script>
+    let viewModel = {};
+    let dashboardTileLayout = $("#dashboard-tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 6,
+                rowSpan: 2,
+                bodyTemplate: kendo.template($("#login-summary-template").html())
+            },
+            {
+                colSpan: 6,
+                rowSpan: 2,
+                bodyTemplate: kendo.template($("#cashflow-stats-template").html())
+            },
+            {
+                colSpan: 3,
+                rowSpan: 2,
+                header: {
+                    text: "<span><i class='k-icon k-i-graph'></i> Highlights</span>"
+                },
+                bodyTemplate: kendo.template($("#highlights-filter-template").html())
+            },
+            {
+                colSpan: 3,
+                rowSpan: 2,
+                header: {
+                    text: "<span><i class='k-icon k-i-bell'></i> Lease expires this month</span>"
+                },
+                bodyTemplate: kendo.template($("#lease-stats-template").html())
+            },
+        ],
+        columns: 6,
+        columnsWidth: "33%",
+        rowsHeight: "auto",
+        reorderable: false,
+        resizable: false,
+    }).data("kendoTileLayout");
+
+    $(document).ready(function () {
+        createViewModel();
+        kendo.bind($("#dashboard-tilelayout"), viewModel);
+        viewModel.unitData.read();
+        viewModel.tenantData.read();
+        viewModel.invoiceData.read();
+        viewModel.profitabilityData.read();
+        propertyGrid();
+    });
+
+    function createViewModel(){
+        viewModel = kendo.observable({
+            total_units: 0,
+            total_units_status: '0 unit(s) vacant, 0 unit(s) occupied',
+            percentage_vacant_unit: 0,
+            total_tenants: 0,
+            total_tenants_status: '0 tenants inactive, 0 tenants active',
+            percentage_inactive_unit: 0,
+            total_invoices: 0.00,
+            due_invoices_upto: '<b>0</b> invoice(s) <b>due</b> this month',
+            overdue_invoices_upto: '<b>0</b> invoice(s) already <b>overdue</b>',
+            unpaid_amount: 0.00,
+            due_amount_upto: '$ <b>0.00</b> is <b>due</b> this month',
+            overdue_amount_upto: '$ <b>0.00</b> already <b>overdue</b>',
+            cash_outflow: 0,
+            cash_inflow: 0,
+            cash_opening_balance: 0,
+            cash_closing_balance: 0,
+            start_date: new Date(),
+            end_date: new Date(),
+            unitData: new kendo.data.DataSource({
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/report/unit/get",
+                        type: "GET",
+                        complete: function (e) {
+                            let response = e.responseJSON;
+                            if (response && response.length > 0) {
+                                viewModel.set('total_units', response[0].total_unit);
+                                viewModel.set('total_units_status', `${response[0].total_vacant} unit(s) vacant, ${response[0].total_occupied} unit(s) occupied`);
+                                viewModel.set('percentage_vacant_unit', kendoNumberFormat(response[0].occupancy_ratio, 'p0'));
+                            }
+                        }
+                    },
+                    parameterMap: function (options, operation) {
+                        if (operation !== "read") {
+                            return {
+                                models: kendo.stringify(payload)
+                            };
+                        }
+                    }
+                }
+            }),
+            tenantData: new kendo.data.DataSource({
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/report/tenant/get",
+                        type: "GET",
+                        complete: function (e) {
+                            let response = e.responseJSON;
+                            if (response && response.length > 0) {
+                                viewModel.set('total_tenants', response[0].total_tenants);
+                                viewModel.set('total_tenants_status', `${response[0].inactive_tenants} tenants inactive, ${response[0].active_tenants} tenants active`);
+                                viewModel.set('percentage_inactive_unit', kendoNumberFormat(response[0].occupancy_ratio, 'p0'));
+                            }
+                        }
+                    },
+                    parameterMap: function (options, operation) {
+                        if (operation !== "read") {
+                            return {
+                                models: kendo.stringify(payload)
+                            };
+                        }
+                    }
+                }
+            }),
+            invoiceData: new kendo.data.DataSource({
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/report/invoice/get",
+                        type: "GET",
+                        complete: function (e) {
+                            let response = e.responseJSON;
+                            if (response && response.length > 0) {
+                                viewModel.set('total_invoices', response[0].total_invoice);
+                                viewModel.set('due_invoices_upto', `<b>${response[0].current_month_due_total_invoice}</b> invoice(s) <b>due</b> this month`);
+                                viewModel.set('overdue_invoices_upto', `<b>${response[0].previous_month_due_total_invoice}</b> invoice(s) already <b>overdue</b>`);
+                                viewModel.set('unpaid_amount', kendoNumberFormat(response[0].unpaid_amount, 'c'));
+                                viewModel.set('due_amount_upto', `$ <b>${response[0].current_month_due_amount}</b> is <b>due</b> this month`);
+                                viewModel.set('overdue_amount_upto', `$ <b>${response[0].previous_month_due_amount}</b> already <b>overdue</b>`);
+                                viewModel.set('cash_closing_balance', kendoNumberFormat(response[0].unpaid_amount, 'c'));
+                            }
+                        }
+                    },
+                    parameterMap: function (options, operation) {
+                        if (operation !== "read") {
+                            return {
+                                models: kendo.stringify(payload)
+                            };
+                        }
+                    }
+                }
+            }),
+            profitabilityData: new kendo.data.DataSource({
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/report/profitability/dashboard/get",
+                        type: "GET",
+                        complete: function (e) {
+                            let response = e.responseJSON;
+                            if (response && response.length > 0) {
+                                viewModel.set('cash_outflow', kendoNumberFormat(response[0].invoice_total, 'c'));
+                                viewModel.set('cash_inflow', kendoNumberFormat(response[0].expense_total, 'c'));
+                                viewModel.set('cash_opening_balance', kendoNumberFormat(response[0].profit, 'c'));
+                            }
+                        }
+                    },
+                    parameterMap: function (options, operation) {
+                        if (operation !== "read") {
+                            return {
+                                models: kendo.stringify(payload)
+                            };
+                        }
+                    }
+                }
+            }),
+        });
+    }
+
+    function propertyGrid() {
+        let column = [
+            { field: "tenant_name", title: 'Tenant name' },
+            { field: "property.property_name", title: 'Property details', template: `#:property.property_name#, #:unit.unit_name#` },
+            { field: "lease_end", title: 'Lease ends', format: "{0:yyyy-MM-dd}", width: 100 },
+        ];
+
+        let model = {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                property: {
+                    type: 'object', 
+                    defaultValue: {
+                        _id: null, 
+                        property_name: null
+                    }
+                },
+                unit: { 
+                    type: 'object', 
+                    defaultValue: {
+                        _id: null,
+                        unit_name: null
+                    }
+                },
+                tenant_name: { type: 'string', validation: { required: true } },
+                contact_number: { type: 'string' },
+                lease_start: { type: 'date', validation: { required: true } },
+                lease_end: { type: 'date', validation: { required: true } },
+                lease_amount: { type: 'number', validation: { required: true } },
+                due_day: { type: 'number', validation: { required: true } },
+                deposite_amount: { type: 'number' },
+                isActive: { type: "boolean", defaultValue: true },
+            }
+        };
+
+        let dataSource = new kendo.data.DataSource({
+            dataType: "json",
+            transport: {
+                read: {
+                    url: "/api/report/tenant/query/get",
+                    type: 'GET'
+                },
+                parameterMap: function (options, operation) {
+                    if (operation !== "read" && options.models) {
+                        return { models: kendo.stringify(options.models) };
+                    }
+                },
+            },
+            batch: true,
+            pageSize: 20,
+            schema: {
+                total: 'total',
+                data: "data",
+                model: model
+            }
+        });
+        
+
+        $("#lease_grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: {
+                pageSizes: true,
+                buttonCount: 5,
+                refresh: true
+            },
+            mobile: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 320,
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: column,
+            editable: false
+        });
+    };
+</script>

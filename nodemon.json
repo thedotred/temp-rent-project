@@ -1,0 +1,7 @@
+{
+    "env":{
+        "MONGOURL": "",
+        "SENDGRID_API_KEY": "",
+        "PORT": 3000
+    }
+}

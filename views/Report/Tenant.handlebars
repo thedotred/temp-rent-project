@@ -1,0 +1,308 @@
+<div id="tilelayout"></div>
+
+<div id="filter_window" class="container" style="display:none">
+    <div id="filter"></div>
+</div>
+
+<script id="grid-template" type="text/x-kendo-template">
+  <div id="grid" style="font-size: small;"></div>
+</script>
+
+<script>
+    let data, dataSource;
+
+    $("#tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `Tenant report` },
+                bodyTemplate:
+                    kendo.template($("#grid-template").html())
+            },
+        ],
+        columns: 1,
+        columnsWidth: '100%',
+        rowsHeight: 'auto',
+        reorderable: false,
+        resizable: false
+    });
+
+    $(document).ready(function () {
+        let model = {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                property: {
+                    type: 'object',
+                    defaultValue: {
+                        _id: null,
+                        property_name: null
+                    }
+                },
+                unit: {
+                    type: 'object',
+                    defaultValue: {
+                        _id: null,
+                        unit_name: null
+                    }
+                },
+                tenant: {
+                    type: 'object',
+                    defaultValue: {
+                        _id: null,
+                        tenant_name: null
+                    }
+                },
+                invoice_amount: { type: 'number', validation: { required: true } },
+                collection_amount: { type: 'number', validation: { required: true } },
+                due_amount: { type: 'number', validation: { required: true } },
+            }
+        };
+
+        dataSource = new kendo.data.DataSource({
+            dataType: "json",
+            transport: {
+                read: {
+                    url: "/api/report/tenant/due/get",
+                    complete: function (e) {
+                        kendoPopUpNotifications('success', 'Data fetching complete');
+                    }
+                },
+            },
+            requestStart: function (e) {
+                const wnd = $("#filter_window").data("kendoWindow");
+                if (wnd && !wnd.element.is(":hidden")) {
+                    wnd.close();
+                }
+            },
+            batch: true,
+            pageSize: 20,
+            aggregate: [
+                {
+                    field: "property.property_name",
+                    aggregate: "count"
+                },
+                {
+                    field: "invoice_number",
+                    aggregate: "count"
+                },
+                {
+                    field: "invoice_amount",
+                    aggregate: "sum"
+                },
+                {
+                    field: "collection_amount",
+                    aggregate: "sum"
+                }, 
+                {
+                    field: "due_amount",
+                    aggregate: "sum"
+                }
+            ],
+            schema: {
+                model: model
+            }
+        });
+        reportGrid();
+        createFilter();
+    });
+
+    function reportGrid() {
+        let column = [
+            { field: "tenant.tenant_name", title: 'Tenant Name', width: "120px", footerTemplate: "Total" },
+            { field: "property.property_name", title: 'Property Name', width: "120px", footerTemplate: " Count: #=kendo.toString(count)#", footerAttributes: { 'class': 'text-center' } },
+            { field: "unit.unit_name", title: 'Unit Name', width: "120px", },
+            { field: "invoice_amount", title: 'Invoice Amount', width: "120px", format: '{0:n}', attributes: { "class": "text-right" }, footerTemplate: " #=kendo.toString(sum,'n')#", footerAttributes: { 'class': 'text-right' } },
+            { field: "collection_amount", title: 'Collection Amount', width: "120px", format: '{0:n}', attributes: { "class": "text-right" }, footerTemplate: " #=kendo.toString(sum,'n')#", footerAttributes: { 'class': 'text-right' } },
+            { field: "due_amount", title: 'Outstanding Amount', width: "120px", format: '{0:n}', attributes: { "class": "text-right" }, footerTemplate: " #=kendo.toString(sum,'n')#", footerAttributes: { 'class': 'text-right' } },
+        ];
+
+        $("#grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: {
+                pageSizes: true,
+                buttonCount: 5,
+                refresh: true
+            },
+            mobile: true,
+            autoBind: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 550,
+            toolbar: [
+                "create",
+                {
+                    template: `<span class='k-button' onclick=filterWindow()><i class='k-icon k-i-filter'></i>Filter</span>`
+                },
+                "excel",
+                {
+                    template: `<span class="k-spacer"></span>`
+                },
+                "search"
+            ],
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: column,
+        });
+    };
+
+    //filter Window 
+    function filterWindow(event) {
+        var configuration = {
+            id: 'filter_window',
+            title: 'Filter Window',
+            width: 700,
+            height: 400
+        };
+        kendoWindow(configuration);
+    }
+
+    function createFilter() {
+        $("#filter").kendoFilter({
+            dataSource: dataSource,
+            applyButton: true,
+            fields: [
+                {
+                    name: "unit._id",
+                    label: "Unit Name",
+                    type: "string",
+                    editorTemplate: unitNameFilterEditor
+                },
+                {
+                    name: "property._id",
+                    label: "Property Name",
+                    type: "string",
+                    editorTemplate: propertyNameFilterEditor
+                },
+                {
+                    name: "tenant._id",
+                    label: "Tenant Name",
+                    type: "string",
+                    editorTemplate: tenantNameFilterEditor
+                },
+            ],
+            operators: {
+                string: {
+                    contains: 'Contains',
+                    startsWith: 'Starts with',
+                    eq: 'Is equal to',
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                },
+                number: {
+                    eq: 'Is equal to',
+                    gte: 'Greater or equal to',
+                    gt: 'Greater than',
+                    lte: 'Less or equal to',
+                    lt: 'Less than',
+                },
+                date: {
+                    gte: "Greater than or equal to",
+                    lt: "Less than",
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                }
+            },
+            expression: {
+                logic: "and",
+            },
+        });
+    }
+
+    function parseFilter() {
+        if ($("#grid").data('kendoGrid').dataSource.filter()) {
+            let filters = $("#grid").data('kendoGrid').dataSource.filter().filters,
+                query = [],
+                condition = {};
+            filters.forEach(item => {
+                let obj = {};
+                if (item.operator === 'isnull') {
+                    obj[item.field] = null;
+                } else if (item.operator === 'isnotnull') {
+                    obj[item.field] = { $ne: null };
+                } else if (item.operator === 'eq') {
+                    obj[item.field] = item.value;
+                } else if (item.operator !== 'contains') {
+                    obj[item.field] = {};
+                    obj[item.field][`$${item.operator}`] = item.value;
+                } else {
+                    obj[item.field] = {};
+                    obj[item.field] = { $regex: item.value, $options: "$i" };
+                }
+                query.push(obj);
+            });
+            condition[`$${dataSource.filter().logic}`] = query;
+            return condition;
+        } else {
+            return {}
+        }
+    }
+
+    function unitNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="unit_name" name="unit_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'unit_name',
+            dataValueField: '_id',
+            noDataTemplate: "No unit found",
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/unit/get"
+                    }
+                }
+            }
+        });
+    }
+
+    function propertyNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="property_name" name="property_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'property_name',
+            dataValueField: '_id',
+            noDataTemplate: "No property found",
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/property/get"
+                    }
+                }
+            }
+        });
+    }
+
+    function tenantNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="tenant_name" name="tenant_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'tenant_name',
+            dataValueField: '_id',
+            noDataTemplate: "No tenant found",
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/tenant/get"
+                    }
+                }
+            }
+        });
+    }
+
+</script>

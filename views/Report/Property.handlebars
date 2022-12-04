@@ -1,0 +1,267 @@
+<div id="tilelayout"></div>
+
+<script id="grid-template" type="text/x-kendo-template">
+  <div id="grid" style="font-size: small;"></div>
+</script>
+
+
+<script>
+    let data, dataSource;
+
+    $("#tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `Property profitability report` },
+                bodyTemplate:
+                    kendo.template($("#grid-template").html())
+            },
+        ],
+        columns: 1,
+        columnsWidth: '100%',
+        rowsHeight: 'auto',
+        reorderable: false,
+        resizable: false
+    });
+
+    $(document).ready(function () {
+
+        let model = {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                property_name: { type: 'string' },
+                income : { type: 'number' },
+                expense : { type: 'number' },
+                profit : { type: 'number' }
+            }
+        };
+
+        dataSource = new kendo.data.DataSource({
+            dataType: "json",
+            transport: {
+                read: {
+                    url: "/api/report/profitability/property/query/get",
+                    //type: "POST",
+                    complete: function (e) {
+                        kendoPopUpNotifications('success', 'Data fetching complete');
+                    }
+                },
+                parameterMap: function (options, operation) {
+                    if (operation !== "read") {
+                        return {
+                            models: kendo.stringify([])
+                        }
+                    }
+                }
+            },
+            requestStart: function (e) {
+                const wnd = $("#filter_window").data("kendoWindow");
+                if (wnd && !wnd.element.is(":hidden")) {
+                    wnd.close();
+                }
+            },
+            batch: true,
+            pageSize: 20,
+            aggregate: [
+                {field: "income",aggregate: "sum"},
+                {field: "expense",aggregate: "sum"},
+                {field: "profit",aggregate: "sum"},
+            ],
+            schema: {
+                model: model
+            }
+        });
+        profitabilityGrid();
+    });
+
+    function handleSubmit () {
+        $('#grid').data('kendoGrid').dataSource.read();
+        let payload = {
+            startDate: $("#start-date").val(),
+            endDate: $("#end-date").val(),
+            property: $("#property").val(),
+            unit: $("#unit").val(),
+            tenant: $("#tenant").val()
+        }
+        console.log("paylod >>", payload)
+    }
+
+    function profitabilityGrid() {
+        let column = [
+            { field: "property_name", title: 'Property', width: "120px", footerTemplate: "Total" },
+            { field: "income", title: 'Income', width: "150px", attributes: { "class": "text-right" }, headerAttributes: { "class": "text-center" }, footerTemplate: " #=kendo.toString(sum,'n')#", footerAttributes: { 'class': 'text-right' }, format: '{0:n}' },
+            { field: "expense", title: 'Expense', width: "150px", attributes: { "class": "text-right" }, headerAttributes: { "class": "text-center" }, footerTemplate: " #=kendo.toString(sum,'n')#", footerAttributes: { 'class': 'text-right' }, format: '{0:n}' },
+            { field: "profit", title: 'Profit', width: "150px", attributes: { "class": "text-right" }, headerAttributes: { "class": "text-center" }, footerTemplate: " #=kendo.toString(sum,'n')#", footerAttributes: { 'class': 'text-right' }, format: '{0:n}' },
+        ];
+
+        $("#grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: {
+                pageSizes: true,
+                buttonCount: 5,
+                refresh: true
+            },
+            mobile: true,
+            autoBind: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 550,
+            toolbar: [
+                "excel",
+                {
+                    template: `<span class="k-spacer"></span>`
+                },
+                "search"
+            ],
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: column,
+        });
+    };
+
+    //filter Window 
+    function filterWindow(event) {
+        var configuration = {
+            id: 'filter_window',
+            title: 'Filter Window',
+            width: 700,
+            height: 400
+        };
+        kendoWindow(configuration);
+    }
+
+    function createFilter() {
+        $("#filter").kendoFilter({
+            dataSource: dataSource,
+            applyButton: true,
+            fields: [
+                {
+                    name: "ledger_code",
+                    label: "Ledger Code",
+                    type: "string",
+                    editorTemplate: ledgerCodeFilterEditor
+                },
+                {
+                    name: "ledger_name",
+                    label: "Ledger Name",
+                    type: "string",
+                    editorTemplate: ledgerNameFilterEditor
+                },
+                {
+                    name: "ledger_category",
+                    label: "Ledger Category",
+                    type: "string",
+                    editorTemplate: ledgerCategoryFilterEditor
+                }
+            ],
+            operators: {
+                string: {
+                    contains: 'Contains',
+                    startsWith: 'Starts with',
+                    eq: 'Is equal to',
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                },
+                number: {
+                    eq: 'Is equal to',
+                    gte: 'Greater or equal to',
+                    gt: 'Greater than',
+                    lte: 'Less or equal to',
+                    lt: 'Less than',
+                }
+            },
+            expression: {
+                logic: "and",
+            },
+        });
+    }
+
+    function parseFilter() {
+        if ($("#grid").data('kendoGrid').dataSource.filter()) {
+            let filters = $("#grid").data('kendoGrid').dataSource.filter().filters,
+                query = [],
+                condition = {};
+            filters.forEach(item => {
+                let obj = {};
+                if (item.operator === 'isnull') {
+                    obj[item.field] = null;
+                } else if (item.operator === 'isnotnull') {
+                    obj[item.field] = { $ne: null };
+                } else if (item.operator === 'eq') {
+                    obj[item.field] = item.value;
+                } else if (item.operator !== 'contains') {
+                    obj[item.field] = {};
+                    obj[item.field][`$${item.operator}`] = item.value;
+                } else {
+                    obj[item.field] = {};
+                    obj[item.field] = { $regex: item.value, $options: "$i" };
+                }
+                query.push(obj);
+            });
+            condition[`$${dataSource.filter().logic}`] = query;
+            return condition;
+        } else {
+            return {}
+        }
+    }
+
+    function ledgerCodeFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="ledger_code" name="ledger_code" style="width: 180px" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'ledger_code',
+            dataValueField: 'ledger_code',
+            noDataTemplate: "No ledger code found",
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/ledger/get"
+                    }
+                }
+            }
+        });
+    }
+
+    function ledgerNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="ledger_name" name="ledger_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'ledger_name',
+            dataValueField: 'ledger_name',
+            noDataTemplate: "No ledger name found",
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/ledger/get"
+                    }
+                }
+            }
+        });
+    }
+
+    function ledgerCategoryFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="ledger_category" name="ledger_category" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            noDataTemplate: "No ledger category found",
+            dataSource: ['Expense', 'Income', 'Asset']
+        });
+    }
+
+</script>

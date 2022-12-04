@@ -1,0 +1,445 @@
+<div id="tilelayout"></div>
+
+<div id="filter_window" class="container" style="display:none">
+    <div id="filter"></div>
+</div>
+
+<script id="grid-template" type="text/x-kendo-template">
+  <div id="grid" style="font-size: small;"></div>
+</script>
+
+<script>
+    let data, dataSource;
+
+    $("#tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `Job Lists` },
+                bodyTemplate:
+                    kendo.template($("#grid-template").html())
+            },
+        ],
+        columns: 1,
+        columnsWidth: '100%',
+        rowsHeight: 'auto',
+        reorderable: false,
+        resizable: false
+    });
+
+    $(document).ready(function () {
+        let model = {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                job_date: { type: 'date' },
+                job_description: { type: 'string' },
+                job_performer: { type: 'string' },
+                property: {
+                    type: 'object',
+                    defaultValue: {
+                        _id: null,
+                        property_name: null
+                    }
+                },
+                unit: {
+                    type: 'object',
+                    defaultValue: {
+                        _id: null,
+                        unit_name: null
+                    }
+                },
+                tenant: {
+                    type: 'object',
+                    defaultValue: {
+                        _id: null,
+                        tenant_name: null
+                    }
+                },
+                ledger: {
+                    type: 'object',
+                    defaultValue: {
+                        _id: null,
+                        ledger_name: null
+                    }
+                },
+                isActive: { type: "boolean", defaultValue: true },
+            }
+        };
+
+        dataSource = new kendo.data.DataSource({
+            dataType: "json",
+            transport: {
+                read: {
+                    url: "/api/job/query/get",
+                    type: 'POST',
+                    complete: function (e) {
+                        kendoPopUpNotifications('success', 'Data fetching complete');
+                    }
+                },
+                update: {
+                    url: "/api/job/update",
+                    type: "POST",
+                },
+                destroy: {
+                    url: "/api/job/delete",
+                    type: "POST",
+                },
+                create: {
+                    url: "/api/job/create",
+                    type: "POST",
+                },
+                parameterMap: function (options, operation) {
+                    let pageSize = dataSource.pageSize(),
+                        page = dataSource.page();
+                    if (operation === "read") {
+                        return {
+                            models: kendo.stringify(parseFilter()),
+                            skip: (page - 1) * (pageSize ? pageSize : 0),
+                            limit: (pageSize ? pageSize : 0)
+                        };
+                    }
+                    if (operation !== "read" && options.models) {
+                        return { models: kendo.stringify(options.models) };
+                    }
+                },
+            },
+            requestStart: function (e) {
+                const wnd = $("#filter_window").data("kendoWindow");
+                if (wnd && !wnd.element.is(":hidden")) {
+                    wnd.close();
+                }
+            },
+            batch: true,
+            pageSize: 20,
+            schema: {
+                total: 'total',
+                data: "data",
+                model: model
+            }
+        });
+        jobGrid();
+        createFilter();
+    });
+
+    function jobGrid() {
+        let column = [
+            { field: 'job_date', title: "Job Date", width: '200px', format: "{0:yyyy-MM-dd}" },
+            { field: 'job_description', title: "Job Description", width: '200px' },
+            { field: 'job_performer', title: "Job Performer", width: '200px' },
+            { field: "property.property_name", title: 'Property Name', width: "200px", hideMe: true },
+            { field: "unit.unit_name", title: 'Unit Name', width: "200px", hideMe: true },
+            { field: "tenant.tenant_name", title: 'Tenant Name', width: "200px", editor: tenantNameEditor },
+            { field: "ledger.ledger_name", title: 'Ledger Name', width: "200px", editor: ledgerNameEditor },
+            {
+                command:
+                    [
+                        { name: "edit", text: { edit: " ", update: "Update", cancel: "Cancel" } },
+                        { name: "destroy", text: " " }
+                    ], title: "Options", width: "120px"
+            }
+        ];
+
+        $("#grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: {
+                pageSizes: true,
+                buttonCount: 5,
+                refresh: true
+            },
+            mobile: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 550,
+            toolbar: [
+                "create",
+                {
+                    template: `<span class='k-button' onclick=filterWindow()><i class='k-icon k-i-filter'></i>Filter</span>`
+                },
+                "excel",
+                {
+                    template: `<span class="k-spacer"></span>`
+                },
+                "search"
+            ],
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: column,
+            editable: "popup",
+            edit: function (e) {
+                gridHideMe(e);
+            }
+        });
+    };
+
+    //filter Window 
+    function filterWindow(event) {
+        var configuration = {
+            id: 'filter_window',
+            title: 'Filter Window',
+            width: 700,
+            height: 400
+        };
+        kendoWindow(configuration);
+    }
+
+    function createFilter() {
+        $("#filter").kendoFilter({
+            dataSource: dataSource,
+            applyButton: true,
+            fields: [
+                {
+                    name: "job_date",
+                    label: "Job Date",
+                    type: "date",
+                },
+                {
+                    name: "job_description",
+                    label: "Job Description",
+                    type: "string",
+                },
+                {
+                    name: "job_performer",
+                    label: "Job Performer",
+                    type: "string",
+                },
+                {
+                    name: "unit._id",
+                    label: "Unit Name",
+                    type: "string",
+                    editorTemplate: unitNameFilterEditor
+                },
+                {
+                    name: "property._id",
+                    label: "Property Name",
+                    type: "string",
+                    editorTemplate: propertyNameFilterEditor
+                },
+                {
+                    name: "tenant._id",
+                    label: "Tenant Name",
+                    type: "string",
+                    editorTemplate: tenantNameFilterEditor
+                },
+                {
+                    name: "ledger._id",
+                    label: "Ledger Name",
+                    type: "string",
+                    editorTemplate: ledgerNameFilterEditor
+                },
+            ],
+            operators: {
+                string: {
+                    contains: 'Contains',
+                    startsWith: 'Starts with',
+                    eq: 'Is equal to',
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                },
+                date: {
+                    gte: "Greater than or equal to",
+                    lt: "Less than",
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                }
+            },
+            expression: {
+                logic: "and",
+            },
+        });
+    }
+
+    function parseFilter() {
+        if ($("#grid").data('kendoGrid').dataSource.filter()) {
+            let filters = $("#grid").data('kendoGrid').dataSource.filter().filters,
+                query = [],
+                condition = {};
+            filters.forEach(item => {
+                let obj = {};
+                if (item.operator === 'isnull') {
+                    obj[item.field] = null;
+                } else if (item.operator === 'isnotnull') {
+                    obj[item.field] = { $ne: null };
+                } else if (item.operator === 'eq') {
+                    obj[item.field] = item.value;
+                } else if (item.operator !== 'contains') {
+                    obj[item.field] = {};
+                    obj[item.field][`$${item.operator}`] = item.value;
+                } else {
+                    obj[item.field] = {};
+                    obj[item.field] = { $regex: item.value, $options: "$i" };
+                }
+                query.push(obj);
+            });
+            condition[`$${dataSource.filter().logic}`] = query;
+            return condition;
+        } else {
+            return {}
+        }
+    }
+
+    function tenantNameEditor(container, options) {
+        let input = $(`<input id="tenant" name="tenant" style="width: 100%;" required />`);
+        input.appendTo(container)
+        input.kendoMultiColumnComboBox({
+            filter: "contains",
+            autoBind: false,
+            dataTextField: 'tenant_name',
+            dataValueField: '_id',
+            noDataTemplate: "No tenant found",
+            dataSource: new kendo.data.DataSource({
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/tenant/get",
+                    }
+                },
+                schema: {
+                    model: {
+                        id: "_id",
+                        fields: {
+                            _id: { editable: false, nullable: true },
+                            tenant_name: { type: "string" },
+                            property: {
+                                type: 'object', defaultValue: {
+                                    _id: null, property_name: null
+                                }
+                            },
+                            unit: {
+                                type: 'object', defaultValue: {
+                                    _id: null, unit_name: null
+                                }
+                            },
+                        }
+                    }
+                }
+            }),
+            columns: [
+                { field: "tenant_name", title: "Tenant Name", width: 100 },
+                { field: "property.property_name", title: "Property Name", width: 100 },
+                { field: "unit.unit_name", title: "Unit Name", width: 100 },
+
+            ],
+            filter: "contains",
+            filterFields: ["tenant_name", "property.property_name", "unit.unit_name"],
+            select: function (e) {
+                options.model.set("property.property_name", e.dataItem.property.property_name);
+                options.model.set("property._id", e.dataItem.property._id);
+                options.model.set("unit.unit_name", e.dataItem.unit.unit_name);
+                options.model.set("unit._id", e.dataItem.unit._id);
+            }
+        });
+    }
+
+    function ledgerNameEditor(container, options) {
+        let input = $(`<input id="ledger" name="ledger" style="width: 100%;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            dataTextField: 'ledger_name',
+            dataValueField: '_id',
+            noDataTemplate: "No user role found",
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/ledger/get",
+                    }
+                }
+            }
+        });
+    }
+
+    function unitNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="unit_name" name="unit_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'unit_name',
+            dataValueField: '_id',
+            noDataTemplate: "No user role found",
+            footerTemplate: 'Total number of <strong>#: instance.dataSource.total() #</strong> units found',
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/unit/get"
+                    }
+                }
+            }
+        });
+    }
+
+    function propertyNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="property_name" name="property_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'property_name',
+            dataValueField: '_id',
+            noDataTemplate: "No user role found",
+            footerTemplate: 'Total number of <strong>#: instance.dataSource.total() #</strong> properties found',
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/property/get"
+                    }
+                }
+            }
+        });
+    }
+
+    function tenantNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="tenant_name" name="tenant_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'tenant_name',
+            dataValueField: '_id',
+            noDataTemplate: "No user role found",
+            footerTemplate: 'Total number of <strong>#: instance.dataSource.total() #</strong> tenants found',
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/tenant/get"
+                    }
+                }
+            }
+        });
+    }
+
+    function ledgerNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="ledger_name" name="ledger_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'ledger_name',
+            dataValueField: '_id',
+            noDataTemplate: "No user role found",
+            footerTemplate: 'Total number of <strong>#: instance.dataSource.total() #</strong> ledgers found',
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/ledger/get"
+                    }
+                }
+            }
+        });
+    }
+</script>

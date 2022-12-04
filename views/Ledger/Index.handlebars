@@ -1,0 +1,226 @@
+<div id="tilelayout"></div>
+
+<div id="filter_window" class="container" style="display:none">
+    <div id="filter"></div>
+</div>
+
+<script id="grid-template" type="text/x-kendo-template">
+  <div id="grid" style="font-size: small;"></div>
+</script>
+
+<script>
+    let data, dataSource;
+
+    $("#tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `Ledger Lists` },
+                bodyTemplate:
+                    kendo.template($("#grid-template").html())
+            },
+        ],
+        columns: 1,
+        columnsWidth: '100%',
+        rowsHeight: 'auto',
+        reorderable: false,
+        resizable: false
+    });
+
+    $(document).ready(function () {
+        let model = {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                ledger_code: { type: 'string', validation: { required: true } },
+                ledger_name: { type: "string", validation: { required: true } },
+                ledger_category: { type: "string", validation: { required: true } },
+                isActive: { type: "boolean", defaultValue: true },
+            }
+        };
+
+
+        dataSource = new kendo.data.DataSource({
+            dataType: "json",
+            transport: {
+                read: {
+                    url: "/api/ledger/query/get",
+                    type: 'POST',
+                    complete: function (e) {
+                        kendoPopUpNotifications('success', 'Data fetching complete');
+                    }
+                },
+                update: {
+                    url: "/api/ledger/update",
+                    type: "POST",
+                },
+                destroy: {
+                    url: "/api/ledger/delete",
+                    type: "POST",
+                },
+                create: {
+                    url: "/api/ledger/create",
+                    type: "POST",
+                },
+                parameterMap: function (options, operation) {
+                    let pageSize = dataSource.pageSize(),
+                        page = dataSource.page();
+                    if (operation === "read") {
+                        return {
+                            models: kendo.stringify(parseFilter()),
+                            skip: (page - 1) * (pageSize ? pageSize : 0),
+                            limit: (pageSize ? pageSize : 0)
+                        };
+                    }
+                    if (operation !== "read" && options.models) {
+                        return { models: kendo.stringify(options.models) };
+                    }
+                },
+            },
+            requestStart: function (e) {
+                const wnd = $("#filter_window").data("kendoWindow");
+                if (wnd && !wnd.element.is(":hidden")) {
+                    wnd.close();
+                }
+            },
+            batch: true,
+            pageSize: 20,
+            schema: {
+                total: 'total',
+                data: "data",
+                model: model
+            }
+        });
+        ledgerGrid();
+        createFilter();
+    });
+
+    function ledgerGrid() {
+        let column = [
+            { field: "ledger_code", title: 'Ledger Code', width: "200px" },
+            { field: "ledger_name", title: 'Ledger Name', width: "200px" },
+            { field: "ledger_category", title: 'Ledger Category', width: "200px", editor: ledgerCategoryEditor  },
+            {
+                command:
+                    [
+                        { name: "edit", text: { edit: " ", update: "Update", cancel: "Cancel" } },
+                        { name: "destroy", text: " " }
+                    ], title: "Options", width: "120px"
+            }
+        ];
+
+        $("#grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: {
+                pageSizes: true,
+                buttonCount: 5,
+                refresh: true
+            },
+            mobile: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 550,
+            toolbar: [
+                "create",
+                {
+                    template: `<span class='k-button' onclick=filterWindow()><i class='k-icon k-i-filter'></i>Filter</span>`
+                },
+                "excel",
+                {
+                    template: `<span class="k-spacer"></span>`
+                },
+                "search"
+            ],
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: column,
+            editable: "popup"
+        });
+    };
+
+    //filter Window 
+    function filterWindow(event) {
+        var configuration = {
+            id: 'filter_window',
+            title: 'Filter Window',
+            width: 700,
+            height: 400
+        };
+        kendoWindow(configuration);
+    }
+
+    function createFilter() {
+        $("#filter").kendoFilter({
+            dataSource: dataSource,
+            applyButton: true,
+            fields: [
+                {
+                    name: "ledger_code",
+                    label: "Ledger Code",
+                    type: "string"
+                },
+                {
+                    name: "ledger_name",
+                    label: "Ledger Name",
+                    type: "string"
+                }
+            ],
+            operators: {
+                string: {
+                    contains: 'Contains',
+                    startsWith: 'Starts with',
+                    eq: 'Is equal to',
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                }
+            },
+            expression: {
+                logic: "and",
+            },
+        });
+    }
+
+    function parseFilter() {
+        if ($("#grid").data('kendoGrid').dataSource.filter()) {
+            let filters = $("#grid").data('kendoGrid').dataSource.filter().filters,
+                query = [],
+                condition = {};
+            filters.forEach(item => {
+                let obj = {};
+                if (item.operator === 'isnull') {
+                    obj[item.field] = null;
+                } else if (item.operator === 'isnotnull') {
+                    obj[item.field] = { $ne: null };
+                } else if (item.operator === 'eq') {
+                    obj[item.field] = item.value;
+                } else if (item.operator !== 'contains') {
+                    obj[item.field] = {};
+                    obj[item.field][`$${item.operator}`] = item.value;
+                } else {
+                    obj[item.field] = {};
+                    obj[item.field] = { $regex: item.value, $options: "$i" };
+                }
+                query.push(obj);
+            });
+            condition[`$${dataSource.filter().logic}`] = query;
+            return condition;
+        } else {
+            return {}
+        }
+    }
+
+    function ledgerCategoryEditor (container, options) {
+        let input = $(`<input id="ledger_category" name="ledger_category" style="width: 100%;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            noDataTemplate: "No ledger category found",
+            dataSource: ['Income', 'Expense', 'Asset']
+        });
+    }
+</script>

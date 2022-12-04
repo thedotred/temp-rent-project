@@ -1,0 +1,260 @@
+<div id="tilelayout"></div>
+
+<div id="filter_window" class="container" style="display:none">
+    <div id="filter"></div>
+</div>
+
+<script id="grid-template" type="text/x-kendo-template">
+  <div id="grid" style="font-size: small;"></div>
+</script>
+
+<script>
+    let data, dataSource;
+
+    $("#tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `List of Units` },
+                bodyTemplate:
+                    kendo.template($("#grid-template").html())
+            },
+        ],
+        columns: 1,
+        columnsWidth: '100%',
+        rowsHeight: 'auto',
+        reorderable: false,
+        resizable: false
+    });
+
+    $(document).ready(function () {
+        let model = {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                property: {type: 'object', defaultValue: {
+                    _id: null, property_name: null
+                } },
+                unit_name: { type: "string", validation: {required: true} },
+                isActive: { type: "boolean", defaultValue: true },
+            }
+        };
+
+
+        dataSource = new kendo.data.DataSource({
+            dataType: "json",
+            transport: {
+                read: {
+                    url: "/api/unit/query/get",
+                    type: 'POST',
+                    complete: function (e) {
+                        kendoPopUpNotifications('success', 'Data fetching complete');
+                    }
+                },
+                update: {
+                    url: "/api/unit/update",
+                    type: "POST",
+                },
+                destroy: {
+                    url: "/api/unit/delete",
+                    type: "POST",
+                },
+                create: {
+                    url: "/api/unit/create",
+                    type: "POST",
+                },
+                parameterMap: function (options, operation) {
+                    let pageSize = dataSource.pageSize(),
+                        page = dataSource.page();
+                    if (operation === "read") {
+                        return {
+                            models: kendo.stringify(parseFilter()),
+                            skip: (page - 1) * (pageSize ? pageSize : 0),
+                            limit: (pageSize ? pageSize : 0)
+                        };
+                    }
+                    if (operation !== "read" && options.models) {
+                        return { models: kendo.stringify(options.models) };
+                    }
+                },
+            },
+            requestStart: function (e) {
+                const wnd = $("#filter_window").data("kendoWindow");
+                if (wnd && !wnd.element.is(":hidden")) {
+                    wnd.close();
+                }
+            },
+            batch: true,
+            pageSize: 20,
+            schema: {
+                total: 'total',
+                data: "data",
+                model: model
+            }
+        });
+        unitGrid();
+        createFilter();
+    });
+
+    function unitGrid() {
+        let column = [
+            { field: "property.property_name", title: 'Property Name', editor: propertyNameEditor, width: "200px" },
+            { field: "unit_name", title: 'Unit Name', width: "200px" },
+            {
+                command:
+                    [
+                        { name: "edit", text: { edit: " ", update: "Update", cancel: "Cancel" } },
+                        { name: "destroy", text: " " }
+                    ], title: "Options", width: "120px"
+            }
+        ];
+
+        $("#grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: {
+                pageSizes: true,
+                buttonCount: 5,
+                refresh: true
+            },
+            mobile: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 550,
+            toolbar: [
+                "create",
+                {
+                    template: `<span class='k-button' onclick=filterWindow()><i class='k-icon k-i-filter'></i>Filter</span>`
+                },
+                "excel",
+                {
+                    template: `<span class="k-spacer"></span>`
+                },
+                "search"
+            ],
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: column,
+            editable: "popup"
+        });
+    };
+
+    //filter Window 
+    function filterWindow(event) {
+        var configuration = {
+            id: 'filter_window',
+            title: 'Filter Window',
+            width: 700,
+            height: 400
+        };
+        kendoWindow(configuration);
+    }
+
+    function createFilter() {
+        $("#filter").kendoFilter({
+            dataSource: dataSource,
+            applyButton: true,
+            fields: [
+                {
+                    name: "property._id",
+                    label: "Property Name",
+                    type: "string",
+                    editorTemplate: propertyNameFilterEditor
+                },
+                {
+                    name: "unit_name",
+                    label: "Unit Name",
+                    type: "string"
+                }
+            ],
+            operators: {
+                string: {
+                    contains: 'Contains',
+                    startsWith: 'Starts with',
+                    eq: 'Is equal to',
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                }
+            },
+            expression: {
+                logic: "and",
+            },
+        });
+    }
+
+    function parseFilter() {
+        if ($("#grid").data('kendoGrid').dataSource.filter()) {
+            let filters = $("#grid").data('kendoGrid').dataSource.filter().filters,
+                query = [],
+                condition = {};
+            filters.forEach(item => {
+                let obj = {};
+                if (item.operator === 'isnull') {
+                    obj[item.field] = null;
+                } else if (item.operator === 'isnotnull') {
+                    obj[item.field] = { $ne: null };
+                } else if (item.operator === 'eq') {
+                    obj[item.field] = item.value;
+                } else if (item.operator !== 'contains') {
+                    obj[item.field] = {};
+                    obj[item.field][`$${item.operator}`] = item.value;
+                } else {
+                    obj[item.field] = {};
+                    obj[item.field] = { $regex: item.value, $options: "$i" };
+                }
+                query.push(obj);
+            });
+            condition[`$${dataSource.filter().logic}`] = query;
+            return condition;
+        } else {
+            return {}
+        }
+    }
+
+    function propertyNameEditor(container, options) {
+        let input = $(`<input id="property" name="property" style="width: 100%;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            dataTextField: 'property_name',
+            dataValueField: '_id',
+            noDataTemplate: "No property found",
+            footerTemplate: 'Total number of <strong>#: instance.dataSource.total() #</strong> property found',
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/property/get"
+                    }
+                }
+            },
+        });
+    }
+
+    function propertyNameFilterEditor(container, options) {
+        let input = $(`<input data-bind="value: value" id="property_name" name="property_name" style="width: 180px;" required />`);
+        input.appendTo(container)
+        input.kendoDropDownList({
+            autoClose: false,
+            autoBind: false,
+            filter: "contains",
+            dataTextField: 'property_name',
+            dataValueField: '_id',
+            noDataTemplate: "No property found",
+            footerTemplate: 'Total number of <strong>#: instance.dataSource.total() #</strong> properties found',
+            dataSource: {
+                type: "json",
+                transport: {
+                    read: {
+                        url: "/api/property/get"
+                    }
+                }
+            }
+        });
+    }
+
+</script>

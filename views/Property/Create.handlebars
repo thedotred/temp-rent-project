@@ -1,0 +1,181 @@
+<div id="tilelayout"></div>
+
+<script id="property-template" type="text/x-kendo-template">
+    <div id="property_form" class="row">
+        <div class="col-md-6 mb-2">
+            <label><b>Property name</b></label>
+            <input id="property" class="k-textbox" name="property" style="width: 100%" required validationMessage="Enter property name">
+        </div>
+        <div class="col-md-6 mb-2">
+            <label><b>Address</b></label>
+            <input id="address" class="k-textbox" name="address" style="width: 100%" required validationMessage="Enter address name">
+        </div>
+        <div class="col-md-6 mb-2">
+            <label><b>City</b></label>
+            <input id="city" class="k-textbox" name="city" title="city" style="width: 100%" required validationMessage="Enter city name">
+        </div>
+        <div class="col-md-6 mb-2">
+            <label><b>State</b></label>
+            <input id="state" class="k-textbox" name="state" title="state" style="width: 100%" required validationMessage="Enter state name">
+        </div>
+        <div class="col-md-6 mb-2">
+            <label><b>Zip Code</b></label>
+            <input id="zip-code" title="zip-code" style="width: 100%" required validationMessage="Enter zip code name" />
+        </div>
+    </div>
+</script>
+
+<script id="unit-template" type="text/x-kendo-template">
+    <div class="row">
+        <div class="col-md-4 mb-3 col-sm-12">
+            <label><b>Unit name</b></label>
+            <input id="unit" class="k-textbox" name="unit" style="width: 100%" required validationMessage="Enter unit name">
+        </div>
+        <div class="col-md-2 col-sm-12 w-100 d-flex justify-content-center align-items-center">
+            <button class="k-button" onclick="handleUnitName()" style="width: 100%">Add to List</button>
+        </div>
+    </div>
+    <div id="unitGrid" style="font-size: small;"></div>
+</script>
+
+<script id="submit-template" type="text/x-kendo-template">
+    <div class="row">
+        <div class="col-md-12 text-center">
+            <button id="submit_btn" class="k-button" onclick="handleSubmit()" style="width: 200px">Submit</button>
+        </div>
+    </div>
+</script>
+
+
+<script>
+
+    $("#tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `Property Details` },
+                bodyTemplate: kendo.template($("#property-template").html())
+            },
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `Unit Details` },
+                bodyTemplate: kendo.template($("#unit-template").html())
+            },
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                bodyTemplate: kendo.template($("#submit-template").html())
+            },
+        ],
+        columns: 1,
+        columnsWidth: '100%',
+        rowsHeight: 'auto',
+        reorderable: false,
+        resizable: false
+    });
+
+    $(document).ready(function () {
+        $('#zip-code').kendoNumericTextBox();
+        unitGrid();
+    });
+
+    function unitGrid(){
+        let dataSource= new kendo.data.DataSource({
+            unitLists: [],
+            schema: {
+                model: {
+                    id: "id",
+                    fields: {
+                        unit_name: { type: "string", validation: {required: true} }
+                    }
+                }
+            },
+        });
+
+
+        $("#unitGrid").kendoGrid({
+            dataSource: dataSource,
+            pageable: false,
+            mobile: true,
+            selectable: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 250,
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: [
+                {field: "unit_name", title: "Unit Name", width: "300px"},
+                {
+                    command:
+                        [
+                            { name: "delete", text: `<span class="k-icon k-i-x m-0"></span>`,  click: deleteItem }
+                        ], title: "Options", width: "120px"
+                }
+            ],
+        });        
+    };
+
+    function deleteItem(e){
+        var dataItem = this.dataItem($(e.currentTarget).closest("tr")); 
+        $('#unitGrid').data('kendoGrid').dataSource.remove(dataItem);
+    }
+
+    function handleUnitName(){
+        if (validation({field: 'unit'})){
+            $('#unitGrid').data('kendoGrid').dataSource.add({_id: Date.now(), unit_name: $('#unit').val()});
+            $('#unit').val(null);
+        }
+    }
+
+    function handleSubmit(){
+        if (validation({field: 'property_form'})){
+            let propertyPayload = [{
+                property_name: $('#property').val(),
+                full_address: $('#address').val(),
+                city_name: $('#city').val(),
+                state_name: $('#state').val(),
+                zip_code: $('#zip-code').val(),
+                _id: Date.now(),
+            }];
+
+            $.post("/api/property/create", { models : JSON.stringify(propertyPayload) }, function (res){
+
+                if(res.data[0]){
+                    let property = res.data[0];
+
+                    let unitPayload = [];
+
+                    if(property) {
+                        $('#unitGrid').data('kendoGrid').dataSource.data().toJSON().map(a => {
+                            let mainData = {
+                                ...a,
+                                property: property
+                            };
+                            unitPayload.push(mainData);
+                        })
+
+                        if (unitPayload.length > 0){
+                            $("#submit_btn").prop('disabled', 'disabled');
+                            kendo.ui.progress($("#tilelayout"), true);
+                            $.post("/api/unit/create", { models : JSON.stringify(unitPayload) }, function (res){
+                                kendoPopUpNotifications('success','Successfully saved!');
+                                kendo.ui.progress($("#tilelayout"), false);
+                                window.location.assign('/Property');
+                            }).error(()=>{
+                                $("#submit_btn").prop('disabled', '');
+                                kendo.ui.progress($("#tilelayout"), false);
+                            })
+                        }
+                    }
+                } else {
+                    console.log("id not found");
+                } 
+            });
+        }
+    }
+</script>

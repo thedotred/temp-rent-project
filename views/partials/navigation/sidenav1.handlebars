@@ -1,0 +1,23 @@
+<ul class="list-unstyled components" id='sidebar-body' style="font-size: small;">
+    {{#each partials.data}}
+        {{#ifGreater sub_navigation.length 0}}        
+        <li>
+            <a href="#{{nav_id}}Submenu" id="{{nav_id}}" data-toggle="collapse" aria-expanded="false" class="dropdown-toggle">{{navigation_name}}</a>
+            <ul class="collapse list-unstyled" id="{{nav_id}}Submenu">
+                {{#each sub_navigation}}
+                    <li>
+                        <a href="{{href}}" parent="{{nav_id}}"> {{navigation_name}}</a>
+                    </li>
+                {{/each}}
+            </ul>
+        </li>
+        {{else}}
+            <li>
+                <a href="{{href}}"> {{navigation_name}}</a>
+            </li>
+        {{/ifGreater}}
+    {{/each}}
+    <li>
+        <a href="https://thedotred.com" target="_blank"> &copy; 2022 TDRL</span></a>
+    </li>
+</ul>

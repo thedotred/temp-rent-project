@@ -1,0 +1,93 @@
+<!--Main-->
+<div class="m-2" id="main-body">
+    <div class="">
+        <h4 class="shadow-lg p-3 mt-3 mb-3 bg-primary text-white rounded">
+            Report Template List
+        </h4>
+        <div id="grid"></div>
+    </div>
+</div>
+
+<script>
+    var roleData = [];
+
+    $(document).ready(function () {
+        usersGrid();
+    });
+
+    function usersGrid() {
+        var operationName = "user", model, column;
+        column =
+            [
+                { field: "name", title: "Name" },
+                { field: "content", title: "Content", editor: showTextArea },
+                { field: "data_source", title: "Data Source", editor: showTextArea },
+                { command: ["edit", "destroy"], title: "&nbsp;", width: "180px" },
+            ];
+        model =
+        {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                name: { type: "string", validation: { required: true } },
+                content: { type: "string", validation: { required: true } },
+                data_source: { type: "string" },
+            }
+        };
+
+        var dataSource = new kendo.data.DataSource({
+            transport: {
+                read: {
+                    url: "/api/template/get",
+                    dataType: "json"
+                },
+                update: {
+                    url: "/api/template/update",
+                    type: "POST",
+                    dataType: "json",
+                },
+                destroy: {
+                    url: "/api/template/delete",
+                    type: "POST",
+                    dataType: "json",
+                },
+                create: {
+                    url: "/api/template/create",
+                    type: "POST",
+                    dataType: "json"
+                },
+                parameterMap: function (options, operation) {
+                    if (operation !== "read" && options.models) {
+                        return { models: kendo.stringify(options.models) };
+                    }
+                }
+            },
+            batch: true,
+            schema: {
+                model: model
+            }
+        });
+
+        var grid = $("#grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: false,
+            navigatable: true,
+            resizable: true,
+            reorderable: true,
+            sortable: true,
+            columnMenu: {
+                filterable: false
+            },
+            height: 0,
+            toolbar: ["create", "search"],
+            columns: column,
+            editable: "popup"
+        });
+        $("#grid").data('kendoGrid').hideColumn('content');
+        $("#grid").data('kendoGrid').hideColumn('data_source');
+    }
+    var showTextArea = function (container, options) {
+        $('<textarea style="width: 100%" data-bind="value: ' + options.field + '"></textarea>').appendTo(container);
+    };
+
+</script>

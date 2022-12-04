@@ -1,0 +1,255 @@
+<div id="tilelayout"></div>
+
+<div id="filter_window" class="container" style="display:none">
+    <div id="filter"></div>
+</div>
+
+<script id="grid-template" type="text/x-kendo-template">
+  <div id="grid" style="font-size: small;"></div>
+</script>
+
+<script>
+    let data, dataSource;
+
+    $("#tilelayout").kendoTileLayout({
+        containers: [
+            {
+                colSpan: 1,
+                rowSpan: 1,
+                header: { text: `List of Properties` },
+                bodyTemplate:
+                    kendo.template($("#grid-template").html())
+            },
+        ],
+        columns: 1,
+        columnsWidth: '100%',
+        rowsHeight: 'auto',
+        reorderable: false,
+        resizable: false
+    });
+
+    $(document).ready(function () {
+        let model = {
+            id: "_id",
+            fields: {
+                _id: { editable: false, nullable: true },
+                property_name: { type: "string", validation: { required: true } },
+                full_address: { type: "string" },
+                city_name: { type: "string" },
+                state_name: { type: "string" },
+                zip_code: { type: "number" },
+                number_of_units: { type: "number" },
+                isActive: { type: "boolean", defaultValue: true },
+            }
+        };
+
+
+        dataSource = new kendo.data.DataSource({
+            dataType: "json",
+            transport: {
+                read: {
+                    url: "/api/property/query/get",
+                    type: 'POST',
+                    complete: function (e) {
+                        kendoPopUpNotifications('success', 'Data fetching complete');
+                    }
+                },
+                update: {
+                    url: "/api/property/update",
+                    type: "POST",
+                },
+                destroy: {
+                    url: "/api/property/delete",
+                    type: "POST",
+                },
+                create: {
+                    url: "/api/property/create",
+                    type: "POST",
+                    complete: function (e) {
+                        console.log("complete >>", e.responseJSON);
+                    }
+                },
+                parameterMap: function (options, operation) {
+                    let pageSize = dataSource.pageSize(),
+                        page = dataSource.page();
+                    if (operation === "read") {
+                        return {
+                            models: kendo.stringify(parseFilter()),
+                            skip: (page - 1) * (pageSize ? pageSize : 0),
+                            limit: (pageSize ? pageSize : 0)
+                        };
+                    }
+                    console.log("operation >>", operation);
+                    if (operation !== "read" && options.models) {
+                        return { models: kendo.stringify(options.models) };
+                    }
+                },
+            },
+            requestStart: function (e) {
+                const wnd = $("#filter_window").data("kendoWindow");
+                if (wnd && !wnd.element.is(":hidden")) {
+                    wnd.close();
+                }
+            },
+            batch: true,
+            pageSize: 20,
+            schema: {
+                total: 'total',
+                data: "data",
+                model: model
+            }
+        });
+        propertyGrid();
+        createFilter();
+    });
+
+    function propertyGrid() {
+        let column = [
+            { field: "property_name", title: 'Property Name', width: "200px" },
+            { field: "full_address", title: 'Address', width: "200px" },
+            { field: "city_name", title: 'City', width: "120px", attributes: {'class': 'text-center'} },
+            { field: "state_name", title: 'State', width: "100px", attributes: {'class': 'text-center'} },
+            { field: "zip_code", title: 'Zip Code', width: "100px", attributes: {'class': 'text-center'} },
+            { field: "number_of_units", title: 'No. of Units', width: "100px", attributes: {'class': 'text-center'}, hideMe: true },
+            {
+                command:
+                    [
+                        { name: "edit", text: { edit: " ", update: "Update", cancel: "Cancel" } },
+                        { name: "destroy", text: " " }
+                    ], title: "Options", width: "120px"
+            }
+        ];
+
+        $("#grid").kendoGrid({
+            dataSource: dataSource,
+            pageable: {
+                pageSizes: true,
+                buttonCount: 5,
+                refresh: true
+            },
+            mobile: true,
+            sortable: true,
+            reorderable: true,
+            columnMenu: true,
+            height: 550,
+            toolbar: [
+                "create",
+                {
+                    template: `<span class='k-button' onclick=filterWindow()><i class='k-icon k-i-filter'></i>Filter</span>`
+                },
+                "excel",
+                {
+                    template: `<span class="k-spacer"></span>`
+                },
+                "search"
+            ],
+            noRecords: true,
+            messages: {
+                noRecords: "No data available on current page."
+            },
+            columns: column,
+            editable: "popup",
+            edit: function(e){
+                gridHideMe(e);
+            }
+        });
+    };
+
+    //filter Window 
+    function filterWindow(event) {
+        var configuration = {
+            id: 'filter_window',
+            title: 'Filter Window',
+            width: 700,
+            height: 400
+        };
+        kendoWindow(configuration);
+    }
+
+    function createFilter() {
+        $("#filter").kendoFilter({
+            dataSource: dataSource,
+            applyButton: true,
+            fields: [
+                {
+                    name: "property_name",
+                    label: "Property Name",
+                    type: "string"
+                },
+                {
+                    name: "full_address",
+                    label: "Address",
+                    type: "string"
+                },
+                {
+                    name: "city_name",
+                    label: "City",
+                    type: "string"
+                },
+                {
+                    name: "state_name",
+                    label: "State",
+                    type: "string"
+                },
+                {
+                    name: "zip_code",
+                    label: "Zip Code",
+                    type: "number"
+                },
+                {
+                    name: "isActive",
+                    label: "Active",
+                    type: "boolean"
+                },
+            ],
+            operators: {
+                string: {
+                    contains: 'Contains',
+                    startsWith: 'Starts with',
+                    eq: 'Is equal to',
+                    isnull: "Is empty",
+                    isnotnull: "Is not empty"
+                }, 
+                number: {
+                    eq: 'Is equal to',
+                    gte: 'Greater or equal to',
+                    gt: 'Greater than',
+                    lte: 'Less or equal to',
+                    lt: 'Less than',
+                },
+            },
+            expression: {
+                logic: "and",
+            },
+        });
+    }
+
+    function parseFilter() {
+        if ($("#grid").data('kendoGrid').dataSource.filter()) {
+            let filters = $("#grid").data('kendoGrid').dataSource.filter().filters,
+                query = [],
+                condition = {};
+            filters.forEach(item => {
+                let obj = {};
+                if (item.operator === 'isnull') {
+                    obj[item.field] = null;
+                } else if (item.operator === 'isnotnull') {
+                    obj[item.field] = { $ne: null };
+                } else if (item.operator === 'eq') {
+                    obj[item.field] = item.value;
+                } else if (item.operator !== 'contains') {
+                    obj[item.field] = {};
+                    obj[item.field][`$${item.operator}`] = item.value;
+                } else {
+                    obj[item.field] = {};
+                    obj[item.field] = { $regex: item.value, $options: "$i" };
+                }
+                query.push(obj);
+            });
+            condition[`$${dataSource.filter().logic}`] = query;
+            return condition;
+        } else {
+            return {  }
+        }
+    }
+</script>
